@@ -6,8 +6,8 @@ handlers the client already calls (`{ studio }`, `{ studios }`, `{ error, fields
 status codes), so moving the client onto it is configuration, not a rewrite.
 
 **Current state:** the frontend proxies its `/api/*` auth, studio, booking, upload, and
-wishlist requests to this Express service. Studio detail pages continue to read MongoDB
-directly on the server. Both apps use the same database and BetterAuth secret. Nothing is
+wishlist requests to this Express service. Home, explore, and studio detail/edit pages
+fetch studio data from this API on the server. Both apps use the same database and BetterAuth secret. Nothing is
 deployed yet.
 
 ---
@@ -128,9 +128,9 @@ origin to the API's `CLIENT_ORIGINS`. Caveat: BetterAuth's cookie is `SameSite=L
 browsers will **not** send it on cross-site `POST/PUT/PATCH/DELETE`; you would also need
 `advanced.defaultCookieAttributes.sameSite = "none"` (HTTPS only) or a proxy. Option A avoids this.
 
-> `cat_harry_fontend/src/data/studios.js` reads MongoDB directly for server components
-> (`/` featured, `/studios`, `/studios/[id]`). It keeps working either way; only switch it to
-> `fetch(API_URL)` if you want a single data path.
+> `cat_harry_frontend/src/data/studios.js` fetches studio data from this API for server
+> components (`/` featured, `/studios`, `/studios/[id]`, and `/studios/edit/[id]`). If the API
+> is empty or unavailable, it falls back to the local sample catalog.
 
 ### 2. Auth and image upload configuration
 
