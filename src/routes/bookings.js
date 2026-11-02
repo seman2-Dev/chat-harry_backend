@@ -49,7 +49,7 @@ bookingsRouter.get("/", requireAuth, async (req, res) => {
 // (409 when the slot overlaps an active Pending/Confirmed reservation).
 bookingsRouter.post("/", requireAuth, async (req, res) => {
   const { studioId, date, startTime, durationHours } = validateBooking(req.body);
-  const { totalPrice, note, studioSnapshot } = req.body ?? {};
+  const { note, studioSnapshot } = req.body ?? {};
 
   const collection = getDb().collection("bookings");
   const _id = toObjectId(studioId);
@@ -77,7 +77,7 @@ bookingsRouter.post("/", requireAuth, async (req, res) => {
     date,
     startTime,
     durationHours,
-    totalPrice: Number(totalPrice) || hourlyRate * durationHours,
+    totalPrice: hourlyRate * durationHours,
     note: typeof note === "string" ? note.slice(0, 500) : "",
     status: "Pending",
     userEmail: req.session.user.email,
@@ -87,7 +87,7 @@ bookingsRouter.post("/", requireAuth, async (req, res) => {
 
   // Challenge 2: reject collisions with active (Pending/Confirmed) slots.
   const active = await collection
-    .find({ status: { $in: ["Pending", "Confirmed"] } })
+    .find({ studioId, date, status: { $in: ["Pending", "Confirmed"] } })
     .toArray();
   if (active.some((existing) => overlaps(existing, booking))) {
     throw new ApiError(

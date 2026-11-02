@@ -9,6 +9,8 @@ export const reviewsRouter = Router({ mergeParams: true });
 reviewsRouter.get("/", async (req, res) => {
   const _id = toObjectId(req.params.id);
   if (!_id) throw new ApiError(400, "Invalid studio id.");
+  if (!(await getDb().collection("studios").findOne({ _id })))
+    throw new ApiError(404, "Studio not found.");
   const reviews = await getDb().collection("reviews")
     .find({ studioId: req.params.id })
     .sort({ createdAt: -1 })
