@@ -67,6 +67,18 @@ List filters: `?category=Sound%20Stage&q=austin&owner=email&sort=newest|rating|p
   the Next.js app on `:3000` is accepted here on `:5000`. Verified live: sign-in through
   Next → `GET /api/bookings` 200, `POST /api/studios` 201; no cookie → 401.
 
+### JWT access tokens for protected mutations
+
+The backend also enables Better Auth's JWT plugin. The browser uses the existing session
+cookie to request a short-lived EdDSA JWT from `/api/auth/token`; public verification keys
+are available at `/api/auth/jwks`. The frontend attaches that JWT as a Bearer token for
+studio and booking mutations. `requireAuth` verifies its signature against JWKS and checks issuer, audience,
+algorithm, expiry, subject, and email. Invalid bearer tokens get 401 and never fall back
+to cookie auth. Requests with no bearer token still use the Better Auth session cookie,
+so existing clients and sign-in continue to work. JWTs are held in memory only and expire
+after 15 minutes. Set `BETTER_AUTH_URL` to exactly the same public origin used as JWT
+issuer/audience; the JWT signing keys live in MongoDB alongside Better Auth data.
+
 ### Challenge 2 — double-booking prevention
 
 Before inserting, `POST /api/bookings` loads active reservations
