@@ -13,7 +13,7 @@ import { errorHandler } from "./errors.js";
 export function createApp() {
   const app = express();
 
-  // Behind Render/nginx the real client IP/proto come from X-Forwarded-*.
+  // Behind Vercel/Render proxies the real client IP/proto come from X-Forwarded-*.
   app.set("trust proxy", 1);
 
   // Cookies are HttpOnly session tokens → cross-origin callers need
@@ -25,6 +25,10 @@ export function createApp() {
   app.all("/api/auth/*splat", authHandler);
 
   app.use(express.json({ limit: "7mb" }));
+
+  app.get("/", (req, res) => {
+    res.json({ name: "StudioSpace API", ok: true, health: "/api/health" });
+  });
 
   app.get("/api/health", async (req, res) => {
     try {

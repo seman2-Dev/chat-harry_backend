@@ -7,8 +7,7 @@ status codes), so moving the client onto it is configuration, not a rewrite.
 
 **Current state:** the frontend proxies its `/api/*` auth, studio, booking, upload, and
 wishlist requests to this Express service. Home, explore, and studio detail/edit pages
-fetch studio data from this API on the server. Both apps use the same database and BetterAuth secret. Nothing is
-deployed yet.
+fetch studio data from this API on the server. Both apps use the same database and BetterAuth secret. Frontend and backend have Vercel deployments; configure their production environment variables as described below.
 
 ---
 
@@ -107,26 +106,17 @@ npm run smoke
 
 ## Remaining tasks (in order)
 
-### 1. Point the frontend at this API (blocking)
+### 1. Frontend API integration (complete)
 
-**Option A — Next.js rewrites (recommended).** Same-origin requests, so the HttpOnly
-cookie, `credentials`, CORS and cookies on POST all keep working unchanged.
+The frontend uses Next.js rewrites in `next.config.mjs` to proxy same-origin `/api/*`
+requests to this Express service. Set `API_URL` in the frontend `.env.local` to
+`http://localhost:5000` locally or to the deployed API URL. Server-rendered catalog,
+featured, detail, and edit pages fetch the Express studio endpoints directly; mutations
+and client-side data use the same-origin rewrites so Better Auth cookies are included.
 
-1. `cat_harry_fontend/next.config.mjs` proxies API routes to Express. Set `API_URL` in
-   `cat_harry_fontend/.env.local` (default `http://localhost:5000`):
-
-   ```js
-   API_URL=http://localhost:5000
-   ```
-
-2. Hard-reload a private route (`/my-listings`) while logged in: it must stay on the page
-   (rule 5) and the data must come from the Express log, not from Next.
-
-**Option B — direct cross-origin calls.** Add `NEXT_PUBLIC_API_URL`, change every
-`fetch("/api/...")` to `${base}/api/...` with `credentials: "include"`, and add the client
-origin to the API's `CLIENT_ORIGINS`. Caveat: BetterAuth's cookie is `SameSite=Lax`, so
-browsers will **not** send it on cross-site `POST/PUT/PATCH/DELETE`; you would also need
-`advanced.defaultCookieAttributes.sameSite = "none"` (HTTPS only) or a proxy. Option A avoids this.
+Studio reads fall back to the local sample catalog when the API is unavailable or empty.
+My Listings uses `GET /api/studios?owner=<email>` so the server returns only that host's
+listings.
 
 > `cat_harry_frontend/src/data/studios.js` fetches studio data from this API for server
 > components (`/` featured, `/studios`, `/studios/[id]`, and `/studios/edit/[id]`). If the API
@@ -150,19 +140,30 @@ browsers will **not** send it on cross-site `POST/PUT/PATCH/DELETE`; you would a
 
 ### 4. Deploy
 
-**API → Render**
+**API → Vercel (Express project)**
 
-- Root directory `Milestone-8/assignment-8/cat_harry_backend`; build `npm install`;
-  start `npm start`; health check path `/api/health`.
-- Env: `MONGODB_URI` (Atlas string **with the db name in the path**, e.g.
-  `mongodb+srv://…/studiospace?retryWrites=true`), `BETTER_AUTH_SECRET` (same as client),
-  `BETTER_AUTH_URL` (public client origin), `CLIENT_ORIGINS` (client origin), `GOOGLE_*`.
-  `PORT` is injected by Render. `trust proxy` is already set for Render's TLS proxy.
-- Atlas: allow-list Render egress, create database `studiospace`.
+- Import the backend Git repository as its own Vercel project and set the project root to
+  the repository root. The Express app exports from `index.js`; no `api/index.js`, custom
+  build command, or legacy `builds` mapping is needed.
+- Set Production environment variables in Vercel: `MONGODB_URI` (Atlas string **with the
+  database name in the path**, e.g. `mongodb+srv://…/studiospace?retryWrites=true`),
+  `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://cat-harry-wine.vercel.app`,
+  `CLIENT_ORIGINS=https://cat-harry-wine.vercel.app`, `GOOGLE_CLIENT_ID`, and
+  `GOOGLE_CLIENT_SECRET`. The backend `.env` file is local and is not deployed.
+- Add the deployed function's network access to MongoDB Atlas, then redeploy. The backend
+  domain shown in Vercel becomes the frontend's `API_URL`.
+
+**Alternative: API → Render**
+
+- Create a Node web service from the backend repository; build `npm install`, start
+  `npm start`, health check `/api/health`.
+- Set the same environment variables as above. Render injects `PORT`; the app keeps its
+  port listener for this hosting mode.
+- Allow the service to connect to MongoDB Atlas and create/use the `studiospace` database.
 
 **Client → Vercel**
 
-- Set `API_URL=https://<render-service>.onrender.com` (used by the rewrites from step 1).
+- Set `API_URL=https://<backend-domain>` (used by the rewrites in `next.config.mjs`).
 - Set `BETTER_AUTH_SECRET` and Google vars to the same values as before.
 
 **Post-deploy checks**
@@ -183,22 +184,14 @@ browsers will **not** send it on cross-site `POST/PUT/PATCH/DELETE`; you would a
 
 ### 6. Server commits (rubric: ≥ 8 server-side commits)
 
-`cat_harry_backend` is its own git repo with **1** commit (`feat: Start to build backend.`);
-all current work is uncommitted. Suggested split — stage explicit paths only:
-
-1. `chore: add express/dotenv/better-auth deps and scripts`
-2. `feat: mongo client + lazy env config`
-3. `feat: better-auth session middleware on httpOnly cookie (challenge 1)`
-4. `feat: studios CRUD routes with validation and owner checks`
-5. `feat: featured endpoint and list filters`
-6. `feat: bookings routes with overlap prevention (challenge 2)`
-7. `feat: cors, health check and central error handling`
-8. `test: curl smoke suite` + `docs: backend.md and .env.example`
+`cat_harry_backend` currently has **10 commits**, satisfying the minimum of 8. The frontend
+repository currently has 17 commits, satisfying its minimum of 15.
 
 ### 7. Optional / deployment work remaining
 
-- **PDF booking invoice** for confirmed bookings.
-- Rate limiting / request logging for the deployed API.
+- Saved Studios wishlist API is connected to the frontend studio cards and the private `/saved-studios` page.
+- Confirmed bookings have a print-ready receipt in the frontend; users can choose **Save as PDF** in the browser print dialog.
+- Consider rate limiting / request logging for the deployed API.
 
 Image upload requires `IMGBB_API_KEY` in the backend environment. Without it the endpoint
 returns a clear 503 and the rest of the API remains available.
