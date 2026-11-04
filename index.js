@@ -29,6 +29,8 @@ const origins =[
     publicFrontendUrl,
   ]),
 ];
+// console.log("Better-Auth URL:", authUrl);
+// console.log("Browser origins:", origins);
 const googleId = process.env.GOOGLE_CLIENT_ID || process.env.BETTER_AUTH_GOOGLE_CLIENT_ID;
 const googleSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.BETTER_AUTH_GOOGLE_CLIENT_SECRET;
 
@@ -49,6 +51,7 @@ app.use(express.json({ limit: "7mb" }));
 
 const verifyToken = async(req, res, next) =>{
   try {
+    // console.log("Verifying token:", req.method, req.originalUrl);
     if (req.headers.authorization) {
       const token = req.headers.authorization.split(" ")[1];
       const { payload } = await jwtVerify(token, JWKS, { issuer: authUrl, audience: authUrl, algorithms: ["EdDSA"] });
@@ -61,18 +64,21 @@ const verifyToken = async(req, res, next) =>{
 
     next();
   } catch {
+    // console.log("Unauthorized protected request:", req.method, req.originalUrl);
     res.status(401).json({ error: "Unauthorized" });
   }
 };
 
 app.get("/", (req, res) => res.json({ name: "StudioSpace API", ok: true }));
 app.get("/api/health", async (req, res) => {
+  // console.log("Database health check requested");
   try { await db.command({ ping: 1 }); res.json({ ok: true, db: "up" }); }
   catch { res.status(503).json({ ok: false, db: "down" }); }
 });
 
 // ========================= CRUD Operations ============================
 app.get("/api/studios/featured", async (req, res) => {
+  // console.log("Loading featured studios");
   res.json({ studios: await db.collection("studios").find().sort({ createdAt: -1 }).limit(6).toArray() });
 });
 
