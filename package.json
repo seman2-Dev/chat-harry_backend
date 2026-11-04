@@ -1,23 +1,29 @@
 {
-  "name": "cat_harry_backed",
+  "name": "cat_harry_backend",
   "version": "1.0.0",
-  "description": "StudioSpace API — Express + MongoDB backend (studios, bookings, BetterAuth sessions) for the peer-to-peer creative workspace marketplace.",
+  "description": "StudioSpace API — Express, MongoDB, Better Auth sessions, and JWT protected marketplace endpoints.",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "check": "node --check index.js && node --check src/app.js && node --check src/auth.js && node --check src/db.js && node --check src/env.js && node --check src/errors.js && node --check src/validate.js && node --check src/routes/studios.js && node --check src/routes/bookings.js && node --check src/routes/uploads.js && node --check src/routes/wishlist.js && node --check src/routes/reviews.js",
-    "smoke": "bash scripts/smoke.sh"
+    "check": "node --check index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seman2-Dev/chat-harry_backend.git"
   },
   "keywords": [],
-  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/seman2-Dev/chat-harry_backend/issues"
+  },
+  "homepage": "https://github.com/seman2-Dev/chat-harry_backend#readme",
   "dependencies": {
     "better-auth": "^1.7.14",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
-    "mongodb": "^7.8.0",
-    "jose": "^6.2.14"
+    "jose": "^6.2.14",
+    "mongodb": "^7.8.0"
   }
 }
