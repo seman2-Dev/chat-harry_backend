@@ -1,25 +1,35 @@
 # StudioSpace API — backend instructions
 
-Express 5 (ESM) + `mongodb` driver + better-auth Node adapter. Entry: `index.js` → `createApp()` → `listen`.
+Express 5 (ESM) single-file app: all auth mounting, JWT verification, studios/bookings/reviews/wishlist/uploads routes, and the error handler live inline in `index.js`. `export default app` is for Vercel (`listen()` is skipped when `VERCEL=1`). This folder is its own git repo root (remote `chat-harry_backend`).
+
+Git HEAD still contains the old modular layout (`src/*`, `scripts/smoke.sh`, `backend.md`, `.env.example`); those files are deleted-but-uncommitted in the worktree — check `git status` before trusting them.
 
 ## Commands
 
 ```bash
-cp .env.example .env && npm install
-npm run dev         # :5000 (`node --watch`)
-npm run check       # node --check on all source files
-npm run smoke       # 45-assertion curl suite; needs mongod + server running; needs curl, jq, mongosh
+npm run dev     # node --watch index.js; PORT from .env (5000)
+npm run check   # node --check index.js — add every new source file to this script in package.json
+npm start
 ```
 
-## Env / infra gotchas
+No `smoke` script exists in the worktree (`npm run smoke` → "Missing script"). The old suite at HEAD (`scripts/smoke.sh`) needs mongod + the server up plus `curl`, `jq`, `mongosh` if restored.
 
-- Both apps must share the same MongoDB DB (`MONGODB_URI` path `/studiospace`) and the same `BETTER_AUTH_SECRET`.
-- Backend `.env` has unused `MONGODB_USER` / `MONGODB_Pass` leftovers; only `MONGODB_URI` is read.
+## Env (`.env`, never commit or print)
 
-## Gotchas
+- Required: `MONGODB_URI`, `PORT`, `BETTER_AUTH_URL`, `CLIENT_ORIGINS`, `BETTER_AUTH_SECRET`. Optional: `IMGBB_API_KEY` (uploads), Google creds (`GOOGLE_CLIENT_*` or legacy `BETTER_AUTH_GOOGLE_*`).
+- `MONGODB_URI` path names the database (`client.db()` with no arg) — it must match the frontend's and end in `/studiospace`. The current `.env` URI has an empty path, so the driver silently uses `test`.
+- `BETTER_AUTH_URL` and `CLIENT_ORIGINS` must be the browser-facing frontend origin (local: `http://localhost:3000`); `BETTER_AUTH_SECRET` must equal the frontend's or its session cookie is rejected here.
+- Startup is strict: missing `CLIENT_ORIGINS`/`MONGODB_URI` throws before listening.
 
-- BetterAuth handles `/api/auth/*` before `express.json()`; `/api/studios/featured` before `/api/studios/:id`; Express 5 forwards rejected async handlers to the error middleware (no try/catch needed); overlap check includes `Pending`; Mongo errors → 503, bad JSON → 400.
+## Routing gotchas (Express 5)
 
-## Docs
+- Wildcards are named splats: `app.all("/api/auth/*splat", …)` — a bare `*` is invalid in path-to-regexp v8.
+- Mount order matters: `/api/auth/*` before `express.json()` (Better Auth parses its own body); `/api/studios/featured` before `/api/studios/:id`.
+- `express.json({ limit: "7mb" })` — uploads arrive as base64 data URLs in JSON; lowering the limit breaks them.
+- `verifyToken`: bearer JWT verified against `/api/auth/jwks` (EdDSA, issuer/audience = `BETTER_AUTH_URL`), else Better Auth session cookie, else 401.
+- Booking overlap check treats `Pending` and `Confirmed` as blocking; host transitions follow Pending → Confirmed → Completed / Cancelled rules (409 on illegal jumps).
+- Rejected async handlers forward to the error middleware (no try/catch needed); bad JSON → 400 via `err.status`, everything else → 500.
 
-- API surface / design / remaining tasks: `backend.md` in this folder.
+## Git
+
+Stage explicit paths only — never `git add -A` / `git add .`. Never commit `.env` (already gitignored).
